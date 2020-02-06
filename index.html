@@ -269,9 +269,7 @@ div.tooltip {
           .on("mouseover", MouseOver(svg).bind(this))
           .on("mouseout", MouseOut(svg)))
           .on("click", MouseClick(svg))
-  
-  var clicked = ""
-  
+
   var legend = svg.selectAll(".legend")
     .data(color.domain())
   .enter().append("g")
@@ -286,21 +284,6 @@ div.tooltip {
       .attr("transform", function(d, i) { 
         return "translate(" + (width -10) + "," + 10 + ")";
       })
-      .on("click",function(d){
-   d3.selectAll(".symbol").style("opacity",1)
-   
-   if (clicked !== d){
-     d3.selectAll(".symbol")
-       .filter(function(e){
-       return e.species !== d;
-     })
-       .style("opacity",0.1)
-     clicked = d
-   }
-    else{
-      clicked = ""
-    }
-  });
  
   legend.append("text")
       .attr("x", width - 24)
