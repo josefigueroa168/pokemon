@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<head>
+<!-- Load d3.js -->
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+<!--  CSS -->
+<style> 
+.title {
+  color:rgb(227, 36, 105);
+  min-width: 620px;
+  display: table-cell;
+  vertical-align: middle; 
+}
+
+.label {
+  display: flex;
+  font: 10px sans-serif;
+  fill: white;
+}
+
+div.tooltip { 
+    position: absolute;     
+    text-align: center; 
+    overflow: visible;
+    padding: 2px;       
+    font: 12px sans-serif;    
+    background: #404135; 
+    border: 0px;    
+    border-radius: 8px;     
+    pointer-events: none; 
+    color: black;
+    /*color: rgb(231, 219, 116); */   
+}
+
+.legend {
+  position: absolute;  
+  border: solid;
+    font: 12px sans-serif;
+    height: 40px;
+    width: 80px;
+    fill: white;
+}
+
+.mybody {
+  background: #242521;
+  color: rgb(255, 255, 255);
+  font: sans-serif;
+}
+
+.svg {
+  display: block;
+  padding: 20px;
+  overflow: auto;
+  background: transparent;
+}
+table, th, td {
+  font: 12px sans-serif;
+  border: 1px solid white;
+}
+
+th, td {
+  padding-left: 10px;
+  padding-center: 10px;
+}
+
+h2 {
+  display: float;
+  text-align: center;
+  color: rgb(172, 128, 255);
+}
+</style>
+</head>
+
+
+<!-- Create a div where the graph will take place -->
+
+<body class="mybody">
+  <div class="title"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/417.png" style="height: 60px; float: left;"><h1 style="display: inline;">Pokemon Classification Scatterplot</h1>  <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png" style="height: 60px;"></div>
+</br>
+<script>
+    // set the dimensions and margins of the graph
+
+    margin = ({top: 25, center: 20, bottom: 35, left: 40})
+    height = 600
+    width = 600
+    type = {
+      0: "Bug",
+      1: "Dark",
+      2: "Dragon",
+      3: "Electric",
+      4: "Fairy",
+      5: "Fighting",
+      6: "Fire",
+      7: "Flying",
+      8: "Ghost",
+      9: "Grass",
+      10: "Ground",
+      11: "Ice",
+      12: "Normal",
+      13: "Poison",
+      14: "Psychic",
+      15: "Rock", 
+      16: "Steel",
+      17: "Water"
+    }
+
+ //{x: "PC1 (33% Explained Var) →", y: "↑ PC2 (11% Explained Var"})
+
+  d3.csv("https://raw.githubusercontent.com/josefigueroa168/pokemon/master/pokemon_processed_l.csv", function(d) {
+    return {
+        category : d["Cluster Name"],
+        x : +d.PC1,
+        y : +d.PC2,
+        name : d.name,
+        pn: d.pokedex_number,
+        hp: +d.hp,
+        atk: +d.attack,
+        def: +d.defense,
+        satk: +d.sp_attack,
+        sdef: +d.sp_defense,
+        spd: +d.speed,
+        bt: d.base_total,
+        h: +d.height_m,
+        type1: +d.type1,
+        type2: +d.type2,
+        weight: +d.weight_kg
+      };
+    }).then(function(data) {
+  //console.log(data[0]);
+
+
+    // Functions
+
+    /********************************************************* 
+     * Shape Definitions for the graph borrowed from:        *
+     * https://observablehq.com/@d3/scatterplot-with-shapes  *
+     * (x, y, color, shape, and grid functions)              *
+     *********************************************************/
+
+    x = d3.scaleLinear()
+    .domain(d3.extent(data, d => d.x)).nice()
+    .range([margin.left, width - margin.center])
+
+    y = d3.scaleLinear()
+    .domain(d3.extent(data, d => d.y)).nice()
+    .range([height - margin.bottom, margin.top])
+
+    //color = d3.scaleOrdinal(data.map(d => d.category), d3.schemeCategory10)
+    //['#67a9cf','#bdbdbd','#ef8a62']240, 155, 66
+    color = d3.scaleOrdinal(data.map(d => d.category), ['rgb(100, 208, 230)','rgb(164, 225, 44)','rgb(240, 155, 66)'])
+
+    shape = d3.scaleOrdinal(data.map(d => d.category), d3.symbols.map(s => d3.symbol().type(s)()))
+
+    var symbol = d3.symbol().size(100); 
+
+    xAxis = g => g
+    .attr("transform", `translate(0,${height - margin.bottom})`)
+    .call(d3.axisBottom(x).ticks(width / 80))
+    .call(g => g.select(".domain").remove())
+    .call(g => g.append("text")
+        .attr("x", width)
+        .attr("y", margin.bottom - 4)
+        .attr("fill", "currentColor")
+        .attr("text-anchor", "end")
+        .text(data.x))
+
+    yAxis = g => g
+    .attr("transform", `translate(${margin.left},0)`)
+    .call(d3.axisLeft(y))
+    .call(g => g.select(".domain").remove())
+    .call(g => g.append("text")
+        .attr("x", -margin.left)
+        .attr("y", 10)
+        .attr("fill", "currentColor")
+        .attr("text-anchor", "start")
+        .text(data.y))
+
+    grid = g => g
+    .attr("stroke", "currentColor")
+    .attr("stroke-opacity", 0.1)
+    .call(g => g.append("g")
+      .selectAll("line")
+      .data(x.ticks())
+      .join("line")
+        .attr("x1", d => 0.5 + x(d))
+        .attr("x2", d => 0.5 + x(d))
+        .attr("y1", margin.top)
+        .attr("y2", height - margin.bottom))
+    .call(g => g.append("g")
+      .selectAll("line")
+      .data(y.ticks())
+      .join("line")
+        .attr("y1", d => 0.5 + y(d))
+        .attr("y2", d => 0.5 + y(d))
+        .attr("x1", margin.left)
+        .attr("x2", width - margin.center));
+
+    /***** End of borrowed functions *******/
+    function MouseOver(svg) {
+      return (d, i) => {  // Add interactivity
+                // Use D3 to select element, change color and size
+                //d3.select(this).attr("fill", "black");
+                svg.select("#" + "point-" + d.name.replace(/[:.'\s]+/g, ''))
+                  .attr("fill", "black");
+                //console.log(d.name);
+                
+                svg.append("text")
+                  .attr("id", "name-" + d.name.replace(/[:.'\s]+/g, ''))
+                  .attr("x", x(d.x + .1))
+                  .attr("y", y(d.y + .1))
+                  .attr("fill", "white")
+                  .text(d.name)
+                  .attr("font-family", "sans-serif")
+                  .style("visibility", "visible")
+              }
+    }
+    function MouseOut (svg) {
+      return (d, i) =>  {
+        svg.select("#" + "point-" + d.name.replace(/[:.'\s]+/g, ''))
+                  .attr("fill", color(d.category));
+         svg.select("#" + "name-" + d.name.replace(/[.:'\s]+/g, ''))
+           .remove()
+      }
+    }
+    curdiv = ""
+    function MouseClick (svg) {
+      return (d, i) => {
+            if (curdiv == d.name) {
+              div.transition()    
+                .duration(500)    
+                .style("opacity", 0); 
+                curdiv = "" 
+            }
+            else {
+            div.transition()    
+                .duration(200)
+                .style("background", color(d.category))    
+                .style("opacity", .9);  
+            if (d.type1 == d.type2) {
+              var d_type = type[d.type1]
+            }
+            else {
+              var d_type = type[d.type1] + " and " + type[d.type2]
+            }
+
+            div .html("<img src=\"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/" + d.pn + ".png\" height=\"96px\"><br/>" +
+                      "Name: " + d.name + "<br/>" +
+                      "Type: " + d_type + "<br/>" + 
+                      "HP: " + d.hp + "<br/>" + 
+                      "Attack: " + d.atk + "<br/>" +
+                      "Defense: " +  d.def + "<br/>" + 
+                      "Sp Attack: " +  d.satk + "<br/>" + 
+                      "Sp Defense: " +  d.sdef + "<br/>" + 
+                      "Speed: " +  d.spd + "<br/>" + 
+                      "Base Stat Total: " +  d.bt + "<br/>" + 
+                      "Height: " +  d.h + "m<br/>" + 
+                      "Weight: " +  d.weight + "kg<br/>") 
+                .style("left", (d3.event.pageX) + "px")   
+                .style("top", (d3.event.pageY - 28) + "px");
+                curdiv = d.name;
+                }
+
+     }
+} 
+
+
+
+    var div = d3.select("body").append("div") 
+      .attr("class", "tooltip")       
+      .style("opacity", 0)
+      .on("mouseout", function(d) {
+        div.style("opacity", 0)
+      });
+
+
+    // Construct SVG
+    var svg = d3.select("body").append("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .attr("viewBox", [0, 0, width, height])
+
+
+    svg.append("g")
+      .call(xAxis);
+
+    svg.append("g")
+        .call(yAxis);
+
+    svg.append("g")
+        .call(grid);
+
+    svg.append('text')
+    .attr('x', 20)
+    .attr('y', 15)
+    .attr('class', 'label')
+    .html("↑ PC2 (11% Explained Var)");
+
+    svg.append('text')
+    .attr('x', width)
+    .attr('y', height - 5)
+    .attr('text-anchor', 'end')
+    .attr('class', 'label')
+    .text("PC1 (33% Explained Var) →");
+
+
+    svg.append("g")
+        .attr("stroke-width", 1.5)
+        .attr("font-family", "sans-serif")
+        .attr("font-size", 10)
+      .selectAll("g")
+      .data(data)
+      .join("g")
+        .attr("transform", d => `translate(${x(d.x)},${y(d.y)})`)
+        .call(g => g.append("path")
+          .attr("id", d => {return "point-" + d.name.replace(/[.:'\s]+/g, '');})
+          .attr("fill", d => color(d.category))
+          .attr("d", d => shape(d.category))
+          .attr("stroke", "black")
+          .on("mouseover", MouseOver(svg).bind(this))
+          .on("mouseout", MouseOut(svg)))
+          .on("click", MouseClick(svg))
+
+  
+  var legend = svg.selectAll("svg")
+    .data(color.domain())
+  .enter().append("g")
+    .attr("class", "legend")
+    .attr("transform", function(d, i) { return "translate(-20," + (i * 20 +25) + ")"; });
+
+  legend.append("path")
+    .style("fill", function(d) { return color(d); })
+      .attr("stroke", "black")
+      .attr("d", function(d, i) { 
+        //console.log(d)
+        return shape(d); })
+      .attr("transform", function(d, i) { 
+        return "translate(" + (width -10) + "," + 10 + ")";
+      })
+ 
+  legend.append("text")
+      .attr("x", width - 24)
+      .attr("y", 9)
+      .attr("dy", ".35em")
+      .style("text-anchor", "end")
+      .text(function(d) { return d; });
+    var table = d3.select("body").append("div")
+      .attr("style", "max-width: 620px;")
+      .html(
+          '<h2>Feature Relevance</h2><table align="center"><thead><tr><th>Feature        </th><th style="text-align: center;">        PC1</th><th style="text-align: center;">       PC2</th></tr></thead><tbody><tr><td>attack         </td><td style="text-align: center;"> 30.2%  </td><td style="text-align: center;"> 8.9%</td></tr><tr><td>defense        </td><td style="text-align: center;"> 27.2%  </td><td style="text-align: center;">-22.4% </td></tr><tr><td>hp             </td><td style="text-align: center;"> 27.6%   </td><td style="text-align: center;">-4.5%</td></tr><tr><td>sp_attack      </td><td style="text-align: center;"> 30.2%  </td><td style="text-align: center;"> 12.7% </td></tr><tr><td>sp_defense     </td><td style="text-align: center;"> 29.7%  </td><td style="text-align: center;">-6.4%</td></tr><tr><td>speed          </td><td style="text-align: center;"> 20.8%  </td><td style="text-align: center;"> 30.0% </td></tr><tr><td>percentage_male</td><td style="text-align: center;"> 18.7%   </td><td style="text-align: center;">-4.8%</td></tr><tr><td>base_total     </td><td style="text-align: center;"> 41.5%  </td><td style="text-align: center;"> 4.7%</td></tr><tr><td>capture_rate   </td><td style="text-align: center;">-32.8%  </td><td style="text-align: center;">-5.2% </td></tr><tr><td>classfication  </td><td style="text-align: center;">-3.1% </td><td style="text-align: center;">-11.1% </td></tr><tr><td>is_legendary   </td><td style="text-align: center;"> 26.0%  </td><td style="text-align: center;"> 3.3%</td></tr><tr><td>height_m       </td><td style="text-align: center;"> 28.4%  </td><td style="text-align: center;">-8.3%</td></tr><tr><td>type1          </td><td style="text-align: center;"> 2.5% </td><td style="text-align: center;">-60.2% </td></tr><tr><td>type2          </td><td style="text-align: center;"> .5%</td><td style="text-align: center;">-61.8% </td></tr><tr><td>weight_kg      </td><td style="text-align: center;"> 26.5%  </td><td style="text-align: center;">-15.3% </td></tr><tr><td>generation     </td><td style="text-align: center;"> 4.1% </td><td style="text-align: center;"> 18.8% </td></tr></tbody></table>'
+          )
+    });
+    </script>
+  </body>
